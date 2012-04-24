@@ -119,7 +119,7 @@ local function makeSendToClient(id)
 end
 
 local function Part(x, y, kind, dir)
-  print('part', x, y, kind)
+  --print('part', x, y, kind)
   local priv = {
     kind = kind,
     dir = dir,
@@ -193,7 +193,11 @@ local function parseShip(str)
 end
 
 function M.addShip(id, body)
-  body = ffi.cast('cpBody*', body)
+  if body then
+    body = ffi.cast('cpBody*', body)
+  else
+    body = ships[id].body
+  end
   --print("body", body)
 
   --C._BodySetAngVel(body, (id - 100) * 3.14159 / 3.3)
@@ -344,6 +348,11 @@ function M.shipMessage(client, id, message)
   end
 
   local s = ships[id]
+
+  if message == 'restart' then
+    M.addShip(id)
+  end
+
   if s and s.controller.message then s.controller.message(message) end
 end
 

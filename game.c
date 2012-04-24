@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#include <assert.h>
 
 //#include <stdbool.h>
 #include "chipmunk/chipmunk.h"
@@ -11,12 +12,37 @@
 #include "net.h"
 #include "lua.h"
 
+
 struct {
   int differ;
   int skip;
 } stats = {};
 
-KHASH_SET_INIT_INT(intset);
+// From http://www.cygnus-software.com/papers/comparingfloats/comparingfloats.htm
+bool AlmostEqual2sComplement(float A, float B, int maxUlps) {
+  // Make sure maxUlps is non-negative and small enough that the
+  // default NAN won't compare as equal to anything.
+  assert(maxUlps > 0 && maxUlps < 4 * 1024 * 1024);
+  int aInt = *(int*)&A;
+  // Make aInt lexicographically ordered as a twos-complement int
+  if (aInt < 0)
+    aInt = 0x80000000 - aInt;
+  // Make bInt lexicographically ordered as a twos-complement int
+  int bInt = *(int*)&B;
+  if (bInt < 0)
+    bInt = 0x80000000 - bInt;
+  int intDiff = abs(aInt - bInt);
+  if (intDiff <= maxUlps)
+    return true;
+  return false;
+}
+
+#define SIMILARD(x, y) (fabs((x) - (y)) < 1e-10)
+#define SIMILARF(x, y) (fabs((x) - (y)) < 1e-4)
+//#define SIMILARF(x, y) AlmostEqual2sComplement(x, y, 10)
+//#define SIMILARD(x, y) AlmostEqual2sComplement((float)x, (float)y, 1)
+
+
 KHASH_MAP_INIT_INT(bodymap, cpBody *);
 
 typedef struct Model {
@@ -43,52 +69,118 @@ void init_models() {
   }
 }
 
-void add_body_to_set(cpShape *shape, void *s) {
-  kh_bodymap_t *bodies = (kh_bodymap_t *)s;
-  
-  cpBody *body = cpShapeGetBody(shape);
-  SpaceBodyData *data = (SpaceBodyData *)body->data;
-
-  int ret;
-  khint_t iter = kh_put_bodymap(bodies, data->id, &ret);
-  kh_val(bodies, iter) = body;
+static PositionRecord sub(PositionRecord a, PositionRecord b) {
+  PositionRecord diff = {
+    a.x - b.x,
+    a.y - b.y,
+    a.a - b.a
+  };
+  return diff;
 }
 
-UpdateFrame *snapshot_for_body(cpBody *body, Frame frame) {
+void update_body_snapshot(cpBody *body, void *framep) {
+  Frame *frame = (Frame *)framep;
   SpaceBodyData *data = (SpaceBodyData *)body->data;
+  
+  cpVect p = cpBodyGetPos(body);
+  cpVect v = cpBodyGetVel(body);
+  cpFloat a = cpBodyGetAngle(body);
+  cpFloat w = cpBodyGetAngVel(body);
+  
 
-  if (data->snapshotFrame != frame) {
-    if (data->snapshotFrame == frame - SNAPSHOT_DELAY) {
-      data->lastSnapshot = data->snapshot;
+//  
+//  PositionRecord prevP = data->snapshot[prevFrame].p;
+//  PositionRecord prevV = data->snapshot[prevFrame].v;
+//  PositionRecord prevA = data->snapshot[prevFrame].a;
+//  // Lets pretend to be a client and see if we get the correct values.
+//  cpFloat sx = prevP.x + prevV.x + prevA.x;
+//  cpFloat sy = prevP.y + prevV.y + prevA.y;
+//  cpFloat sa = prevP.a + prevV.a + prevA.a;
+//
+//  
+  
+//  cpFloat sx = data->x + data->dx + data->ddx;
+//  cpFloat sy = data->y + data->dy + data->ddy;
+//  cpFloat sa = data->angle + data->da + data->dda;
+
+  bool differs = false;
+  if(!SIMILARF(data->cddx, data->a.x)
+     || !SIMILARF(data->cddy, data->a.y)
+     || !SIMILARF(data->cdda, data->w_a)) {
+    differs = true;
+  } else {
+    // Acceleration is in ship coordinates.
+    cpVect a_world = cpvrotate(data->a, cpvforangle(data->ca));
+    
+    // a.x and a.y are relative to the ship.
+    cpVect newv = cpvclamp(cpv(data->cdx + a_world.x * FMULT, data->cdy + a_world.y * FMULT), body->v_limit);
+    cpFloat w_limit = cpBodyGetAngVelLimit(body);
+    cpFloat newda = cpfclamp(data->cda + data->cdda * FMULT, -w_limit, w_limit);
+    
+    if(!SIMILARF(v.x, newv.x)
+       || !SIMILARF(v.y, newv.y)
+       || !SIMILARF(w, newda)) {
+      //printf("old: %.2f %.2f  new: %.2f %.2f  predicted: %.2f %.2f\n", data->cdx, data->cdy, v.x, v.y, newv.x, newv.y);
+      differs = true;
     } else {
-      // Little sentinal value to mark the last snapshot as invalid.
-      data->lastSnapshot.id = 0;
+      cpFloat newx = data->cx + v.x * FMULT;
+      cpFloat newy = data->cy + v.y * FMULT;
+      cpFloat newa = data->ca + w * FMULT;
+      
+      differs = !SIMILARF(p.x, newx)
+                || !SIMILARF(p.y, newy)
+                || !SIMILARF(a, newa);
+      
+      if(differs) {
+        //printf("old: %.2f %.2f  new: %.2f %.2f  predicted: %.2f %.2f\n", data->cx, data->cy, p.x, p.y, newx, newy);
+        //        printf("old %f new %f predicted %f\n", data->ca, a, newa);
+      }
     }
-    
-    data->snapshotFrame = frame;
-    cpVect pos = cpBodyGetPos(body);
-    cpVect v = cpBodyGetVel(body);
-    // You suck, VC++.
-    UpdateFrame snapshot = {data->id,
-      pos.x, pos.y, cpBodyGetAngle(body),
-      v.x, v.y, cpBodyGetAngVel(body),
-      data->a.x, data->a.y, data->w_a
-    };
-    
-    data->snapshot = snapshot;
+  }
+  //differs = true;
+
+  if(differs) {
+    stats.differ++;
+  } else {
+    stats.skip++;
   }
   
-  return &data->snapshot;
+  char current = *frame % SNAPSHOT_DELAY;
+  uint8_t flag = 1 << current;
+  data->relevant_snapshots = (data->relevant_snapshots & ~flag) | (differs << current);
+  
+  data->cx = p.x; data->cy = p.y; data->ca = a;
+  data->cdx = v.x; data->cdy = v.y; data->cda = w;
+  data->cddx = data->a.x; data->cddy = data->a.y; data->cdda = data->w_a;
+  
+  if(differs) {
+    PositionRecord sp = {p.x, p.y, a};
+    PositionRecord sv = {v.x, v.y, w};
+    PositionRecord sa = {data->a.x, data->a.y, data->w_a};
+    
+    data->snapshot[current].p = sp;
+    data->snapshot[current].v = sv;
+    data->snapshot[current].a = sa;
+  }
 }
+
 
 void free_snapshot(Snapshot *snapshot) {
   kv_size(snapshot->creates) = 0;
   kv_size(snapshot->updates) = 0;
   kv_size(snapshot->removes) = 0;
+  kv_size(snapshot->shipdata) = 0;
 }
 
-bool similar(float x, float y) {
-  return abs(x - y) < 1e-10;
+void add_body_to_set(cpShape *shape, void *s) {
+  kh_bodymap_t *bodies = (kh_bodymap_t *)s;
+  
+  cpBody *body = cpShapeGetBody(shape);
+  SpaceBodyData *data = (SpaceBodyData *)body->data;
+  
+  int ret;
+  khint_t iter = kh_put_bodymap(bodies, data->id, &ret);
+  kh_val(bodies, iter) = body;
 }
 
 void make_snapshot(Game *game, Client *client, Snapshot *snapshot) {
@@ -97,6 +189,7 @@ void make_snapshot(Game *game, Client *client, Snapshot *snapshot) {
   // The bodies that are visible right now
   khash_t(bodymap) *visibleBodies = kh_init_bodymap();
   
+  // Update the client's viewport
   if(client->focusedBody) {
     cpVect base = cpBodyGetPos(client->focusedBody);
     client->viewport = cpBBNew(base.x - VIEWPORT_SIZE/2,
@@ -108,22 +201,23 @@ void make_snapshot(Game *game, Client *client, Snapshot *snapshot) {
   cpSpaceBBQuery(game->space, client->viewport, CP_ALL_LAYERS, CP_NO_GROUP,
                  add_body_to_set, visibleBodies);
   
-  //cpSpaceEachShape(game->space, add_body_to_set, visibleBodies);
-                 
-  // Iterate through all objects visible last frame and check that they're all
-  // visible now.
-  for (unsigned int i = 0; i < kv_size(client->visibleObjects); i++) {
-    ObjectId id = kv_A(client->visibleObjects, i);
-    if (kh_get(bodymap, visibleBodies, id) == kh_end(visibleBodies)) {
-      // The object was visible last frame but isn't visible now. Remove it from
-      // the client's simulation.
-      kv_push(ObjectId, snapshot->removes, id);
+  // Find all objects visible last frame that aren't visible now.
+  for (khiter_t iter = kh_begin(client->visibleObjects); iter < kh_end(client->visibleObjects); iter++) {
+    if (!kh_exist(client->visibleObjects, iter)) continue;
+    
+    ObjectId id = kh_key(client->visibleObjects, iter);
+    if (kh_get(bodymap, visibleBodies, id) != kh_end(visibleBodies)) {
+      continue;
     }
+    
+    // The object was visible last frame but isn't visible now. Send an update so it animates
+    // off the client's screen & remove it from the client's simulation.
+    kv_push(ObjectId, snapshot->removes, id);
+    kh_del(intset, client->visibleObjects, iter);
+    
+    // It might make sense to send an update packet for the disappearing object as well, since it shouldn't
+    // disappear until the snapshot ends.
   }
-  
-  // Clear the list of what was visible before. We'll add everything to it that we
-  // just saw.
-  kv_size(client->visibleObjects) = 0;
 
   // Iterate through all visible bodies, potentially updating them.
   for (khint_t iter = kh_begin(visibleBodies); iter < kh_end(visibleBodies); iter++) {
@@ -132,65 +226,39 @@ void make_snapshot(Game *game, Client *client, Snapshot *snapshot) {
     ObjectId id = kh_key(visibleBodies, iter);
     cpBody *body = kh_val(visibleBodies, iter);
     
-    kv_push(ObjectId, client->visibleObjects, id);
-    
-    UpdateFrame *s = snapshot_for_body(body, game->frame);
     SpaceBodyData *data = (SpaceBodyData *)body->data;
     bool sendShipData = false;
     
-    khint_t lastSeenIter = kh_get_i(client->lastUpdated, id);
-
-    if (lastSeenIter == kh_end(client->lastUpdated)) {
-      // The client has never seen the body before. Add a create frame for it.
+    khint_t visibleIter = kh_get_intset(client->visibleObjects, id);
+    if (visibleIter == kh_end(client->visibleObjects)) {
+      // The object is not visible for the client. Add it.
       CreateFrame create = {
         id,
         data->type,
         data->model,
-        (float)cpBodyGetMass(body),
-        (float)cpBodyGetMoment(body),
+        //(float)cpBodyGetMass(body),
+        //(float)cpBodyGetMoment(body),
+        (float)cpBodyGetVelLimit(body),
+        (float)cpBodyGetAngVelLimit(body),
+        {body->p.x, body->p.y, body->a},
+        {body->v.x, body->v.y, body->w},
+        {data->a.x, data->a.y, data->w_a},
       };
       
       sendShipData = true;
       
       kv_push(CreateFrame, snapshot->creates, create);
-      kv_push(UpdateFrame, snapshot->updates, *s);
       
+      // Mark the client as having seen the body.
       int ret;
-      lastSeenIter = kh_put_i(client->lastUpdated, id, &ret);
-      kh_val(client->lastUpdated, lastSeenIter) = game->frame;
+      kh_put_intset(client->visibleObjects, id, &ret);
     } else {
-      SpaceBodyData *data = (SpaceBodyData *)body->data;
-      int lastSeen = kh_val(client->lastUpdated, lastSeenIter);
-      if (data->lastSnapshot.id && lastSeen) {
-        // We *might* be able to skip updating the object. Lets see.
-        
-        UpdateFrame *prev = &data->lastSnapshot;
-        float mult = SNAPSHOT_DELAY * DT / 1000;
-        
-        if (s->w != prev->w || s->vx != prev->vx || s->vy != prev->vy
-            || !similar(s->x, prev->x + mult * prev->vx)
-            || !similar(s->y, prev->y + mult * prev->vy)
-            || !similar(s->angle, prev->angle + mult * prev->w)) {
-          // Nah - there's been a collision or something.
-          
-          // I could check the acceleration here, but there's no real point. If an object has accelerated,
-          // its velocity should be different anyway.
-          kv_push(UpdateFrame, snapshot->updates, *s);
-          //printf("Warp!\n");
-          stats.differ++;
-        } else {
-          stats.skip++;
-        }
-        sendShipData = data->changed;
-      } else {
-        // Its not on the client's screen. We'll just send an update frame and the client
-        // will put it back on screen.
-        kv_push(UpdateFrame, snapshot->updates, *s);
-
-        int ret;
-        lastSeenIter = kh_put_i(client->lastUpdated, id, &ret);
-        kh_val(client->lastUpdated, lastSeenIter) = game->frame;
+      if(data->relevant_snapshots != 0) {
+        // Send an update frame for the body. The net code does the hard work for this one.
+        kv_push(SpaceBodyData *, snapshot->updates, data);
       }
+
+      sendShipData = data->changed;
     }
     
     if(sendShipData && data->type == SHIP) {
@@ -262,7 +330,7 @@ LUA_EXPORT void fire_gun(Game *g, cpBody *owner, cpFloat jx, cpFloat jy, cpFloat
   SpaceBodyData *data = (SpaceBodyData *)body->data;
   data->spawn_frame = g->frame;
   data->owner = owner;
-  data->color[0] = data->color[1] = data->color[2] = 200;
+  //data->color[0] = data->color[1] = data->color[2] = 200;
   
   cpVect offset = cpvadd(cpv(off_x, off_y), models[data->model].offset);
   cpVect off_world = cpvrotate(offset, owner->rot); // relative to the center of the ship.
@@ -286,14 +354,11 @@ void apply_acceleration(cpBody *body) {
 
     // Acceleration is in ship coordinates.
     cpVect a = cpvrotate(data->a, body->rot);
-    //  cpVect off_rot = cpvrotate(cpv(off_x, off_y), body->rot);
 
     // a.x and a.y are relative to the ship.
-    body->v = cpvadd(body->v, cpvmult(a, (float)DT/1000));
-//    body->v.x += data->a.x * (float)DT/1000;
-//    body->v.y += data->a.y * (float)DT/1000;
-//printf("%f %f\n", body->w, data->w_a * (float)DT/1000);
-    body->w += data->w_a * (float)DT/1000;
+    body->v = cpvadd(body->v, cpvmult(a, FMULT));
+    
+    body->w = cpfclamp(body->w + data->w_a * FMULT, -body->w_limit, body->w_limit);
   }
 }
 
@@ -306,7 +371,7 @@ void update_body(cpBody *body, void *vdata) {
   BodyUpdateInfo *info = (BodyUpdateInfo *)vdata;
   
   SpaceBodyData *data = (SpaceBodyData *)body->data;
-  if (data->type == BULLET && data->spawn_frame <= info->game->frame - 500) {
+  if (data->type == BULLET && data->spawn_frame + 500 <= info->game->frame) {
     kv_push(cpBody *, info->purge_list, body);
   } else {
     apply_acceleration(body);
@@ -315,25 +380,18 @@ void update_body(cpBody *body, void *vdata) {
   cpVect p = cpBodyGetPos(body);
   
   // If objects go out of the game world, push them back in!
-  cpVect outOfBounds = cpvzero;
-  const cpFloat BOUNDS_MULT = 0.2;
+  cpVect v = cpBodyGetVel(body);
   if(p.x < -3000) {
-    outOfBounds.x += p.x + 3000;
+    v.x = fabs(v.x);
   } else if(p.x > 3000) {
-    outOfBounds.x += p.x - 3000;
+    v.x = -fabs(v.x);
   }
   if(p.y < -3000) {
-    outOfBounds.y += p.y + 3000;
+    v.y = fabs(v.y);
   } else if(p.y > 3000) {
-    outOfBounds.y += p.y - 3000;
+    v.y = -fabs(v.y);
   }
-  
-  if(outOfBounds.x || outOfBounds.y) {
-    body->v.x += -outOfBounds.x * BOUNDS_MULT;
-    body->v.y += -outOfBounds.y * BOUNDS_MULT;
-  }
-  
-  cpBodySetPos(body, p);
+  cpBodySetVel(body, v);
 }
 
 void remove_shape(cpBody *body, cpShape *shape, void *space) {
@@ -376,12 +434,9 @@ void game_update(Game *game) {
   
   cpSpaceStep(game->space, (cpFloat)DT / 1000);
   
+  cpSpaceEachBody(game->space, update_body_snapshot, &game->frame);  
   
-//  for (int i = 0; i < kv_size(game->clients); i++) {
-//    Client *c = kv_A(game->clients, i);
-//  }
-  
-  if (game->frame % SNAPSHOT_DELAY == 0) {
+  if (game->frame % SNAPSHOT_DELAY == SNAPSHOT_DELAY - 1) {
     // Radar.
     if (game->last_radar_frame < game->frame - 20) {
       kv_size(game->radar) = 0;
@@ -391,10 +446,10 @@ void game_update(Game *game) {
 
     // Update clients
     //printf("snapshot!");
+    Snapshot snapshot = {};
     for (unsigned int i = 0; i < kv_size(game->clients); i++) {
       Client *c = kv_A(game->clients, i);
       if (c->avatar == 0) continue;
-      Snapshot snapshot = {};
       make_snapshot(game, c, &snapshot);
       // write over network
       write_snapshot(c->stream, &snapshot);
@@ -402,6 +457,11 @@ void game_update(Game *game) {
     }
     
     cpSpaceEachBody(game->space, clear_changed_flag, NULL);
+  }
+  
+  if(game->frame % 30 == 0) {
+    printf("skips: %d differ: %d\n", stats.skip, stats.differ);
+    stats.skip = stats.differ = 0;
   }
 }
 
@@ -449,14 +509,14 @@ Game *game_init() {
   
   g->L = init_lua(g);
 
-  for(int i = 0; i < 30; i++) {
+  for(int i = 0; i < 100; i++) {
     float mass = 50;
     ObjectId id = g->next_id++;
     cpBody *body = instantiate_model(MODEL_SHIP, id, g->space, mass, SHIP);
     
     cpBodySetPos(body, cpv(111 + i/10 * 100, 222 + (i % 10) * 100));
     cpBodySetAngVelLimit(body, 6);
-    cpBodySetVelLimit(body, 400);
+    cpBodySetVelLimit(body, 600);
     
     //SpaceBodyData *data = (SpaceBodyData *)body->data;
     //data->color[0] = random() % 256;
@@ -519,8 +579,7 @@ Client *client_connected(Game *game, uv_stream_t *stream) {
   c->viewport = cpBBNew(0,0,0,0);
   c->avatar = 0;
   c->focusedBody = NULL;
-  c->lastUpdated = kh_init(i);
-  kv_init(c->visibleObjects);
+  c->visibleObjects = kh_init(intset);
   
   kv_init(c->readBuffers);
   c->offset = 0;
@@ -529,7 +588,6 @@ Client *client_connected(Game *game, uv_stream_t *stream) {
   c->game = game;
 
   stream->data = c;
-  kv_init(c->visibleObjects);
   kv_push(Client *, game->clients, c);
   
   uv_read_start(stream, alloc_cb, read_cb);

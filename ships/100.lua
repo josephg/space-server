@@ -116,7 +116,29 @@ local function turnTowards(targetAngle)
 
 end
 
+local r = 0
+
 function M.update(radar)
+  --[[
+  r = r + 1
+  rotate(0)
+  if r == 50 then rotate(-1) end
+  if r == 100 then
+    rotate(1)
+    r = 0
+  end
+  ]]
+  --[[
+  rotate(1)
+  ship(1, 4).power = 1
+  ship(2, 4).power = 1
+  ship(3, 4).power = 1
+  ship(4, 4).power = 1
+  ship(5, 4).power = 1
+  ship(2, 5).power = 1
+  ship(3, 5).power = 1
+  ship(4, 5).power = 1
+  ]]
   turnTowards(targetAngle)
 end
 

@@ -12,6 +12,7 @@
 #define DT 33
 #define SNAPSHOT_DELAY 5
 #define VIEWPORT_SIZE 1024
+static const float FMULT = (float)DT/1000;
 
 #include "chipmunk/chipmunk.h"
 
@@ -27,7 +28,7 @@
 typedef uint32_t ObjectId;
 typedef uint32_t Frame;
 
-KHASH_MAP_INIT_INT(i, int)
+KHASH_SET_INIT_INT(intset);
 
 typedef enum {
   SHIP,
@@ -37,22 +38,23 @@ typedef enum {
   SUN
 } EntityType;
 
+typedef struct {
+  float x, y, a;
+} PositionRecord;
+
 #pragma pack(1)
 typedef struct {
   ObjectId id;
   uint8_t type;
   uint8_t model;
-  float mass;
-  float moment;
+  //float mass; // No longer used.
+  //float moment;
+  float v_limit;
+  float a_limit;
+  PositionRecord p, v, a;
 } CreateFrame;
 
-typedef struct {
-  ObjectId id;
-  
-  // Using 4-byte floats to cut down on network bandwidth.
-  float x, y, angle, vx, vy, w, ax, ay, aw;
-} UpdateFrame;
-
+// For the radar
 typedef struct {
   float x, y;
   float heat;
@@ -72,7 +74,7 @@ typedef kvec_t(Heat) HeatVec;
 typedef struct {
   HeatVec *radar;
   kvec_t(CreateFrame) creates;
-  kvec_t(UpdateFrame) updates;
+  kvec_t(struct SpaceBodyData_t *) updates;
   kvec_t(ObjectId) removes;
   kvec_t(ShipData) shipdata;
 } Snapshot;
@@ -99,14 +101,10 @@ typedef struct Client {
   // If this is set, updates are centered around it.
   cpBody *focusedBody;
   
-  // Map from object ID -> the frame# when the client last had an update about that
-  // object. 0 if the object is not currently visible but has been visible in the
-  // past. Objects are missing from the hash if the client has never seen them.
-  khash_t(i) *lastUpdated;
-  // This is a list of objects which were visible to the client on the previous
-  // snapshot. It is a cache of the objects in lastUpdatedObject which are not zero.
-  kvec_t(ObjectId) visibleObjects;
-  
+  // Set of all the objects that were visible to the client during the last snapshot
+  // frame.
+  khash_t(intset) *visibleObjects;
+
   // Stuff for reframing input data
   kvec_t(uv_buf_t) readBuffers;
   int32_t offset;
@@ -118,7 +116,7 @@ typedef struct Client {
 struct lua_State;
 typedef struct Game {
   cpSpace *space;
-  int frame;
+  Frame frame;
   kvec_t(Client *) clients;
   int next_id;
   uint32_t next_avatar_id;
@@ -135,12 +133,31 @@ typedef enum {
   MODEL_BULLET
 } ModelIdx;
 
-typedef struct {
+typedef struct SpaceBodyData_t{
   ObjectId id;
-  UpdateFrame snapshot;
-  UpdateFrame lastSnapshot;
-  Frame snapshotFrame;
   
+  // The difference between the object's values and its values in the previous frame.
+  // This mirrors what clients would predict watching the body.
+
+//  cpFloat x, y, angle;
+//  cpFloat dx, dy, da;
+//  cpFloat ddx, ddy, dda;
+
+  // Where the client thinks everything is
+  cpFloat cx, cy, ca;
+  cpFloat cdx, cdy, cda;
+  float cddx, cddy, cdda; // Ship coordinates
+  
+  // 1 in each bit if the snapshot data for that frame should be sent in the next snapshot
+  // frame.
+  uint8_t relevant_snapshots;
+  struct {
+    PositionRecord p;
+    PositionRecord v;
+    PositionRecord a;
+  } snapshot[SNAPSHOT_DELAY];
+  
+  // Set by a ship's engines
   cpVect a;
   cpFloat w_a;
   

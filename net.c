@@ -50,7 +50,7 @@ void write_snapshot(uv_stream_t *stream, Snapshot *snapshot) {
   
   Header header = {0, SNAPSHOT};
   
-  uv_buf_t b[10] = {};
+  uv_buf_t b[12] = {};
   int used_bufs = 0;
   
   b[used_bufs++] = uv_buf_init((char *)&header, 5); // Eat it, padding.
@@ -66,7 +66,33 @@ void write_snapshot(uv_stream_t *stream, Snapshot *snapshot) {
   
   if (numUpdates) {
     b[used_bufs++] = uv_buf_init((char *)&numUpdates, sizeof(numUpdates));
-    b[used_bufs++] = uv_buf_init((char *)&kv_A(snapshot->updates, 0), numUpdates * sizeof(UpdateFrame));
+    char *bytes = malloc(numUpdates * (sizeof(ObjectId) + 1 + SNAPSHOT_DELAY * sizeof(PositionRecord) + 100));
+    char *p = bytes;
+    
+    for (int i = 0; i < numUpdates; i++) {
+      // Updates are packed.
+      SpaceBodyData *data = kv_A(snapshot->updates, i);
+      *(ObjectId *)p = data->id;
+      p += sizeof(ObjectId) / sizeof(*p);
+      *(p++) = data->relevant_snapshots; // Works because relevant_snapshots is only 1 byte.
+      //printf("relevant_s = %d\n", data->relevant_snapshots);
+      for (int f = 0; f < SNAPSHOT_DELAY; f++) {
+        if (data->relevant_snapshots & (1<<f)) {
+          // Write that snapshot.
+          *(PositionRecord *)p = data->snapshot[f].p;
+          p += sizeof(PositionRecord);
+          
+          if (!(data->relevant_snapshots & (1<<(f+1)))) {
+            *(PositionRecord *)p = data->snapshot[f].v;
+            p += sizeof(PositionRecord);
+            *(PositionRecord *)p = data->snapshot[f].a;
+            p += sizeof(PositionRecord);
+          }
+        }
+      }
+    }
+    
+    b[used_bufs++] = uv_buf_init(bytes, p - bytes);
   }
   
   if (numCreates) {
