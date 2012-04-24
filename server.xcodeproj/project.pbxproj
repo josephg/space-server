@@ -1,0 +1,279 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 46;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		FD465DD415410C6300B58499 /* uv.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FD465DD215410C6300B58499 /* uv.a */; };
+		FD465DF41541130100B58499 /* chipmunk.a in Frameworks */ = {isa = PBXBuildFile; fileRef = FD465DF31541130100B58499 /* chipmunk.a */; };
+		FD6EC51515317B9C00F53090 /* main.c in Sources */ = {isa = PBXBuildFile; fileRef = FD6EC51415317B9C00F53090 /* main.c */; };
+		FDCDD45A1536504200C2F219 /* game.c in Sources */ = {isa = PBXBuildFile; fileRef = FDCDD4591536504200C2F219 /* game.c */; };
+		FDCDD45D153652E700C2F219 /* Carbon.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = FDCDD45C153652E700C2F219 /* Carbon.framework */; };
+		FDCDD4691536BE6D00C2F219 /* net.c in Sources */ = {isa = PBXBuildFile; fileRef = FDCDD4681536BE6C00C2F219 /* net.c */; };
+		FDCDD46F15396B1C00C2F219 /* libluajit-51.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = FDCDD46E15396B1C00C2F219 /* libluajit-51.dylib */; };
+		FDCDD4711539806E00C2F219 /* lua.c in Sources */ = {isa = PBXBuildFile; fileRef = FDCDD4701539806E00C2F219 /* lua.c */; };
+		FDCDD473153980BE00C2F219 /* libreadline.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = FDCDD472153980BE00C2F219 /* libreadline.dylib */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		FDCDD464153654DF00C2F219 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 7;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		FD465DD215410C6300B58499 /* uv.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = uv.a; path = mac/libs/uv.a; sourceTree = SOURCE_ROOT; };
+		FD465DF31541130100B58499 /* chipmunk.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = chipmunk.a; path = mac/libs/chipmunk.a; sourceTree = SOURCE_ROOT; };
+		FD6EC50015317A8500F53090 /* server */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = server; sourceTree = BUILT_PRODUCTS_DIR; };
+		FD6EC51415317B9C00F53090 /* main.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = main.c; sourceTree = SOURCE_ROOT; };
+		FDCDD4591536504200C2F219 /* game.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = game.c; sourceTree = SOURCE_ROOT; };
+		FDCDD45B153650F000C2F219 /* game.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = game.h; sourceTree = SOURCE_ROOT; };
+		FDCDD45C153652E700C2F219 /* Carbon.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Carbon.framework; path = System/Library/Frameworks/Carbon.framework; sourceTree = SDKROOT; };
+		FDCDD46515367F1500C2F219 /* khash.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = khash.h; sourceTree = SOURCE_ROOT; };
+		FDCDD46615367F9800C2F219 /* kvec.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = kvec.h; sourceTree = SOURCE_ROOT; };
+		FDCDD4671536BE2100C2F219 /* net.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = net.h; sourceTree = SOURCE_ROOT; };
+		FDCDD4681536BE6C00C2F219 /* net.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = net.c; sourceTree = SOURCE_ROOT; };
+		FDCDD46E15396B1C00C2F219 /* libluajit-51.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = "libluajit-51.dylib"; path = "usr/local/lib/libluajit-51.dylib"; sourceTree = SDKROOT; };
+		FDCDD4701539806E00C2F219 /* lua.c */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.c; path = lua.c; sourceTree = SOURCE_ROOT; };
+		FDCDD472153980BE00C2F219 /* libreadline.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; name = libreadline.dylib; path = usr/lib/libreadline.dylib; sourceTree = SDKROOT; };
+		FDCDD474153A6AF100C2F219 /* lua.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = lua.h; sourceTree = SOURCE_ROOT; };
+		FDCDD475153C511C00C2F219 /* ship.lua */ = {isa = PBXFileReference; lastKnownFileType = text; path = ship.lua; sourceTree = SOURCE_ROOT; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		FD6EC4FD15317A8500F53090 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FDCDD473153980BE00C2F219 /* libreadline.dylib in Frameworks */,
+				FDCDD46F15396B1C00C2F219 /* libluajit-51.dylib in Frameworks */,
+				FDCDD45D153652E700C2F219 /* Carbon.framework in Frameworks */,
+				FD465DD415410C6300B58499 /* uv.a in Frameworks */,
+				FD465DF41541130100B58499 /* chipmunk.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		FD6EC4F515317A8500F53090 = {
+			isa = PBXGroup;
+			children = (
+				FDCDD472153980BE00C2F219 /* libreadline.dylib */,
+				FD6EC50315317A8500F53090 /* server */,
+				FD6EC50115317A8500F53090 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		FD6EC50115317A8500F53090 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				FD6EC50015317A8500F53090 /* server */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FD6EC50315317A8500F53090 /* server */ = {
+			isa = PBXGroup;
+			children = (
+				FD6EC51415317B9C00F53090 /* main.c */,
+				FDCDD4591536504200C2F219 /* game.c */,
+				FDCDD45B153650F000C2F219 /* game.h */,
+				FDCDD475153C511C00C2F219 /* ship.lua */,
+				FDCDD4581536500300C2F219 /* Libs */,
+				FDCDD46515367F1500C2F219 /* khash.h */,
+				FDCDD46615367F9800C2F219 /* kvec.h */,
+				FDCDD4671536BE2100C2F219 /* net.h */,
+				FDCDD4681536BE6C00C2F219 /* net.c */,
+				FDCDD4701539806E00C2F219 /* lua.c */,
+				FDCDD474153A6AF100C2F219 /* lua.h */,
+			);
+			path = server;
+			sourceTree = "<group>";
+		};
+		FDCDD4581536500300C2F219 /* Libs */ = {
+			isa = PBXGroup;
+			children = (
+				FD465DD215410C6300B58499 /* uv.a */,
+				FDCDD45C153652E700C2F219 /* Carbon.framework */,
+				FDCDD46E15396B1C00C2F219 /* libluajit-51.dylib */,
+				FD465DF31541130100B58499 /* chipmunk.a */,
+			);
+			name = Libs;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		FD6EC4FF15317A8500F53090 /* server */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FD6EC50A15317A8500F53090 /* Build configuration list for PBXNativeTarget "server" */;
+			buildPhases = (
+				FD6EC4FC15317A8500F53090 /* Sources */,
+				FD6EC4FD15317A8500F53090 /* Frameworks */,
+				FDCDD464153654DF00C2F219 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = server;
+			productName = server;
+			productReference = FD6EC50015317A8500F53090 /* server */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		FD6EC4F715317A8500F53090 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0430;
+			};
+			buildConfigurationList = FD6EC4FA15317A8500F53090 /* Build configuration list for PBXProject "server" */;
+			compatibilityVersion = "Xcode 3.2";
+			developmentRegion = English;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = FD6EC4F515317A8500F53090;
+			productRefGroup = FD6EC50115317A8500F53090 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				FD6EC4FF15317A8500F53090 /* server */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		FD6EC4FC15317A8500F53090 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				FD6EC51515317B9C00F53090 /* main.c in Sources */,
+				FDCDD45A1536504200C2F219 /* game.c in Sources */,
+				FDCDD4691536BE6D00C2F219 /* net.c in Sources */,
+				FDCDD4711539806E00C2F219 /* lua.c in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		FD6EC50815317A8500F53090 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				COPY_PHASE_STRIP = NO;
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_SYMBOLS_PRIVATE_EXTERN = NO;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		FD6EC50915317A8500F53090 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ARCHS = "$(ARCHS_STANDARD_64_BIT)";
+				COPY_PHASE_STRIP = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_ENABLE_OBJC_EXCEPTIONS = YES;
+				GCC_VERSION = com.apple.compilers.llvm.clang.1_0;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.7;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		FD6EC50B15317A8500F53090 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(SRCROOT)/mac/libs\"",
+				);
+				OTHER_LDFLAGS = (
+					"-pagezero_size",
+					10000,
+					"-image_base",
+					100000000,
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				RUN_CLANG_STATIC_ANALYZER = YES;
+			};
+			name = Debug;
+		};
+		FD6EC50C15317A8500F53090 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"$(SRCROOT)/mac/libs\"",
+				);
+				OTHER_LDFLAGS = (
+					"-pagezero_size",
+					10000,
+					"-image_base",
+					100000000,
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				RUN_CLANG_STATIC_ANALYZER = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		FD6EC4FA15317A8500F53090 /* Build configuration list for PBXProject "server" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FD6EC50815317A8500F53090 /* Debug */,
+				FD6EC50915317A8500F53090 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		FD6EC50A15317A8500F53090 /* Build configuration list for PBXNativeTarget "server" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				FD6EC50B15317A8500F53090 /* Debug */,
+				FD6EC50C15317A8500F53090 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = FD6EC4F715317A8500F53090 /* Project object */;
+}
