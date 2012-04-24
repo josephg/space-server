@@ -29,6 +29,7 @@ ffi.cdef[[
   void set_ship_layout(cpBody *body, const unsigned char *layout);
   void set_ship_label(cpBody *body, const unsigned char *label);
   void set_ship_color(cpBody *body, uint8_t r, uint8_t g, uint8_t b);
+  void set_heat(cpBody *body, float heat);
 
   typedef void (*fptr)();
   struct cpBody {
@@ -103,7 +104,7 @@ local owners = {
   atanas = 117
 }
 
-local engine_mult = 8000
+local engine_mult = 4000
 local gun_impulse = 500
 local gun_cooldown = 7
 
@@ -285,6 +286,7 @@ end
 
 function M.update()
   for i,s in pairs(ships) do
+    local heat = 0
     if s.controller.update then s.controller.update() end
 
     C.reset_acceleration(s.body)
@@ -293,6 +295,7 @@ function M.update()
       if e.kind == "engine" and e.power > 0 then
         p = p * engine_mult
         C.add_acceleration(s.body, p * -e.dir[1], p * -e.dir[2], tileToPixel(e))
+        heat = heat + e.power
       elseif e.kind == "gun" and e.power > 0.1 then
         priv = getmetatable(e).__index
 
@@ -301,9 +304,12 @@ function M.update()
         if priv.lastFired + gun_cooldown < game.frame then
           C.fire_gun(game, s.body, p * e.dir[1], p * e.dir[2], tileToPixel(e))
           priv.lastFired = game.frame
+          heat = heat + 10
         end
       end
     end
+
+    C.set_heat(s.body, heat)
   end
 end
 

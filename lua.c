@@ -123,6 +123,11 @@ LUA_EXPORT void set_client_viewport(Client *client, cpFloat x, cpFloat y) {
   client->viewport = cpBBNew(x - VIEWPORT_SIZE/2, y - VIEWPORT_SIZE/2, x + VIEWPORT_SIZE/2, y + VIEWPORT_SIZE/2);
 }
 
+LUA_EXPORT void set_heat(cpBody *body, float heat) {
+  SpaceBodyData *data = (SpaceBodyData *)body->data;
+  data->heat += heat / RADAR_FRAME_DELAY;
+}
+
 void forward_ship_controller_message(Client *client, char *message) {
   Game *game = client->game;
   ObjectId id = client->avatar;

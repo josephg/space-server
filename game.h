@@ -12,6 +12,7 @@
 #define DT 33
 #define SNAPSHOT_DELAY 5
 #define VIEWPORT_SIZE 1024
+#define RADAR_FRAME_DELAY 20
 static const float FMULT = (float)DT/1000;
 
 #include "chipmunk/chipmunk.h"
@@ -35,8 +36,18 @@ typedef enum {
   BULLET,
   ASTEROID,
   PLANET,
-  SUN
+  SUN,
+  DEBRIS,
+  WALL
 } EntityType;
+
+typedef enum {
+  MODEL_SHIP,
+  MODEL_BULLET,
+  MODEL_DEBRIS1,
+  MODEL_DEBRIS2,
+  MODEL_DEBRIS3,
+} ModelIdx;
 
 typedef struct {
   float x, y, a;
@@ -113,6 +124,11 @@ typedef struct Client {
   struct Game *game;
 } Client;
 
+typedef struct Radar {
+  HeatVec objects;
+  HeatVec blips;
+} Radar;
+
 struct lua_State;
 typedef struct Game {
   cpSpace *space;
@@ -122,27 +138,14 @@ typedef struct Game {
   uint32_t next_avatar_id;
   
   int last_radar_frame;
-  kvec_t(Heat) radar;
+  Radar radar;
   
   struct lua_State *L;
 } Game;
 
-
-typedef enum {
-  MODEL_SHIP,
-  MODEL_BULLET
-} ModelIdx;
-
 typedef struct SpaceBodyData_t{
   ObjectId id;
   
-  // The difference between the object's values and its values in the previous frame.
-  // This mirrors what clients would predict watching the body.
-
-//  cpFloat x, y, angle;
-//  cpFloat dx, dy, da;
-//  cpFloat ddx, ddy, dda;
-
   // Where the client thinks everything is
   cpFloat cx, cy, ca;
   cpFloat cdx, cdy, cda;
@@ -163,6 +166,8 @@ typedef struct SpaceBodyData_t{
   
   EntityType type;
   ModelIdx model;
+  
+  float heat;
   
   union {
     // For bullets.

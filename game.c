@@ -55,16 +55,33 @@ typedef struct Model {
 Model models[] = {
   { // SHip
     5,
-    {{-25, -25}, {-20, 0}, {0, 20}, {20, 0}, {25, -25}},
+    {{-20, -20}, {-15, 0}, {0, 15}, {15, 0}, {20, -20}},
   },
   { // bullet
     3,
     {{-3, -5}, {0, 5}, {3, -5}},
   },
+  { // Debris1
+    4,
+    {{-20, -20}, {-15, 0}, {0, 0}, {0, -20}},
+  },
+  { // debris 2
+    4,
+    {{0,0}, {15, 0}, {20, -20}, {0, -20}}
+  },
+  { // debris 3
+    3,
+    {{-15, 0}, {0, 15}, {15, 0}}
+  },
 };
 
 void init_models() {
   for (int i = 0; i < sizeof(models)/sizeof(models[0]); i++) {
+//    for(int v = 0; v < models[i].num_verts; v++) {
+//      models[i].verts[v].x *= .7;
+//      models[i].verts[v].y *= .7;
+//    }
+    
     models[i].offset = cpvneg(cpCentroidForPoly(models[i].num_verts, models[i].verts));
   }
 }
@@ -184,7 +201,7 @@ void add_body_to_set(cpShape *shape, void *s) {
 }
 
 void make_snapshot(Game *game, Client *client, Snapshot *snapshot) {
-  snapshot->radar = game->last_radar_frame == game->frame ? (HeatVec *)&game->radar : NULL;
+  snapshot->radar = game->last_radar_frame == game->frame ? (HeatVec *)&game->radar.objects : NULL;
   
   // The bodies that are visible right now
   khash_t(bodymap) *visibleBodies = kh_init_bodymap();
@@ -404,13 +421,13 @@ void add_shape_to_radar(cpShape *shape, void *radar_d) {
   // If any shapes are in the world twice, they'll appear twice in the radar!
   // (Fix this once its a problem...)
   SpaceBodyData *data = (SpaceBodyData *)body->data;
-  if (data->type == SHIP) {
+  if (data->type == SHIP && data->heat > 0) {
     Heat heat = {
       (float)body->p.x,
       (float)body->p.y,
-      100, // heat
+      data->heat, // heat
     };
-    
+    data->heat = 0;
     kv_push(Heat, *radar, heat);
   }
 }
@@ -438,8 +455,8 @@ void game_update(Game *game) {
   
   if (game->frame % SNAPSHOT_DELAY == SNAPSHOT_DELAY - 1) {
     // Radar.
-    if (game->last_radar_frame < game->frame - 20) {
-      kv_size(game->radar) = 0;
+    if (game->last_radar_frame < game->frame - RADAR_FRAME_DELAY) {
+      kv_size(game->radar.objects) = 0;
       cpSpaceEachShape(game->space, add_shape_to_radar, &game->radar);
       game->last_radar_frame = game->frame;
     }
@@ -457,6 +474,10 @@ void game_update(Game *game) {
     }
     
     cpSpaceEachBody(game->space, clear_changed_flag, NULL);
+    
+    if(game->last_radar_frame == game->frame) {
+      kv_size(game->radar.blips) = 0;
+    }
   }
   
   if(game->frame % 30 == 0) {
@@ -486,12 +507,21 @@ int bullet_hit_ship_begin(cpArbiter *arb, cpSpace *space, void *data) {
   return (b_data->owner != s || game->frame - b_data->spawn_frame > 5);
 }
 
-void bullet_hit_ship_post(cpArbiter *arb, cpSpace *space, void *data) {
+void bullet_hit_ship_post(cpArbiter *arb, cpSpace *space, void *unused) {
   CP_ARBITER_GET_BODIES(arb, b, s);
   cpFloat energy = cpArbiterTotalKE(arb);
-  if (!energy) return;
-  if (energy > 1000) {
-    //printf("%f\n", energy/1000);    
+  if(energy < 1000) return;
+  SpaceBodyData *data = s->data;
+  if(data->dead) return;
+  
+  float damage = sqrt(energy/2000);
+  // Make the player take damage
+
+  data->hp -= damage;
+  if(data->hp <= 0) {
+    data->hp = 0;
+    data->dead = true;
+    printf("BLah dead ship %d\n", data->id);
   }
 }
 
@@ -505,23 +535,22 @@ Game *game_init() {
   g->next_avatar_id = 100;
   
   g->last_radar_frame = 0;
-  kv_init(g->radar);
+  kv_init(g->radar.objects);
+  kv_init(g->radar.blips);
   
   g->L = init_lua(g);
 
-  for(int i = 0; i < 100; i++) {
+  for(int i = 0; i < 30; i++) {
     float mass = 50;
     ObjectId id = g->next_id++;
     cpBody *body = instantiate_model(MODEL_SHIP, id, g->space, mass, SHIP);
     
     cpBodySetPos(body, cpv(111 + i/10 * 100, 222 + (i % 10) * 100));
     cpBodySetAngVelLimit(body, 6);
-    cpBodySetVelLimit(body, 600);
+    cpBodySetVelLimit(body, 500);
     
-    //SpaceBodyData *data = (SpaceBodyData *)body->data;
-    //data->color[0] = random() % 256;
-    //data->color[1] = random() % 256;
-    //data->color[2] = random() % 256;
+    SpaceBodyData *data = (SpaceBodyData *)body->data;
+    data->hp = 100;
     
     // this should probably happen automatically.
     add_ship(g, id, body);

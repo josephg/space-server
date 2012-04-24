@@ -5,8 +5,8 @@ local ship = ...
 print("seph")
 setLayout[[
 <|||>
--   -
--   -
+<   >
+<   >
 VVVVV
 <VVV>
 ]]
@@ -85,7 +85,7 @@ end
 local fmult = DT / 1000
 
 --local maxAA = 6.103092 * 2
-local maxAA = 24.412367
+local maxAA = 24.412367/2
 
 local function turnTowards(targetAngle)
   --print('w', ship.w)
@@ -140,6 +140,7 @@ function M.update(radar)
   ship(4, 5).power = 1
   ]]
   turnTowards(targetAngle)
+  
 end
 
 function M.onClient(client)
