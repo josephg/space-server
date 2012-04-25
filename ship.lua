@@ -118,17 +118,18 @@ local function makeSendToClient(id)
   end
 end
 
-local function Part(x, y, kind, dir)
+local function Part(x, y, kind, priv)
   --print('part', x, y, kind)
-  local priv = {
-    kind = kind,
-    dir = dir,
-    x = x,
-    y = y
-  }
+  priv = priv or {}
+  priv.x = x
+  priv.y = y
+  priv.kind = kind
+
   local pub = {
     power = 0
   }
+  if priv.turnable then pub.angle = priv.angle end
+
   setmetatable(pub, {
     __index = priv,
     __newindex = function(t,k,v)
@@ -156,19 +157,19 @@ local function parseShip(str)
       end,
       ["G"] = function()
         local dir
-        addPart("gun", {0, 1})
+        addPart("gun", {angle = 0, turnable = true})
       end,
       ["^"] = function()
-        addPart("engine", { 0,  1})
+        addPart("engine", {angle = 0})
       end,
       ["<"] = function()
-        addPart("engine", {-1,  0})
+        addPart("engine", {angle = math.pi/2})
       end,
       [">"] = function()
-        addPart("engine", { 1,  0})
+        addPart("engine", {angle = -math.pi/2})
       end,
       ["V"] = function()
-        addPart("engine", { 0, -1})
+        addPart("engine", {angle = math.pi})
       end,
       [" "] = function() end
     })[c]
@@ -279,7 +280,7 @@ function M.update()
       p = clamp(e.power, 0, 1)
       if e.kind == "engine" and e.power > 0 then
         p = p * engine_mult
-        C.add_acceleration(s.body, p * -e.dir[1], p * -e.dir[2], tileToPixel(e))
+        C.add_acceleration(s.body, e.angle, p, tileToPixel(e))
         heat = heat + e.power
       elseif e.kind == "gun" and e.power > 0.1 then
         priv = getmetatable(e).__index
@@ -287,7 +288,7 @@ function M.update()
         if not priv.lastFired then priv.lastFired = -100 end
         p = p * gun_impulse
         if priv.lastFired + gun_cooldown < game.frame then
-          C.fire_gun(game, s.body, p * e.dir[1], p * e.dir[2], tileToPixel(e))
+          C.fire_gun(game, s.body, e.angle, p, tileToPixel(e))
           priv.lastFired = game.frame
           heat = heat + 10
         end
