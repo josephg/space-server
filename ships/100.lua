@@ -90,6 +90,11 @@ local maxAA = 24.412367/2
 local function turnTowards(targetAngle)
   --print('w', ship.w)
   local turn = normalize(targetAngle - ship.a)
+  for k, part in ship.parts() do
+    if part.kind == 'gun' then
+      part.angle = turn
+    end
+  end
 
   if math.abs(turn) < 0.1 and math.abs(ship.w) < maxAA * fmult then
     rotate(-ship.w / (maxAA * fmult))

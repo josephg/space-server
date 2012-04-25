@@ -303,12 +303,13 @@ LUA_EXPORT void reset_acceleration(cpBody *body) {
   data->w_a = 0;
 }
 
-LUA_EXPORT void add_acceleration(cpBody *body, cpFloat fx, cpFloat fy, cpFloat off_x, cpFloat off_y) {
+LUA_EXPORT void add_acceleration(cpBody *body, cpFloat angle, cpFloat power, cpFloat off_x, cpFloat off_y) {
   // Called from lua.
   //printf("add_accel %f, %f\n", off_x, off_y);
   SpaceBodyData *data = (SpaceBodyData *)body->data;
 
-  cpVect f = cpv(fx, fy);
+  cpVect f = cpvmult(cpvforangle(angle + M_PI_2), -power);
+  //printf("%f, %f, %f\n", angle, f.x, f.y);
   cpVect off = cpv(off_x, off_y);
   data->a = cpvadd(data->a, cpvmult(f, body->m_inv));
   data->w_a += body->i_inv*cpvcross(off, f);
@@ -339,7 +340,7 @@ cpBody *instantiate_model(ModelIdx i, ObjectId id, cpSpace *space, cpFloat mass,
   return body;
 }
 
-LUA_EXPORT void fire_gun(Game *g, cpBody *owner, cpFloat jx, cpFloat jy, cpFloat off_x, cpFloat off_y) {
+LUA_EXPORT void fire_gun(Game *g, cpBody *owner, cpFloat angle, cpFloat power, cpFloat off_x, cpFloat off_y) {
   // Called from lua.
   //SpaceBodyData *ownerData = owner->data;
 
@@ -353,10 +354,10 @@ LUA_EXPORT void fire_gun(Game *g, cpBody *owner, cpFloat jx, cpFloat jy, cpFloat
   cpVect off_world = cpvrotate(offset, owner->rot); // relative to the center of the ship.
   cpBodySetPos(body, cpvadd(owner->p, off_world));
   cpBodySetVel(body, owner->v);
-  cpBodySetAngle(body, cpvtoangle(cpv(jx, jy)) - M_PI_2 + owner->a);
+  cpBodySetAngle(body, owner->a + angle);
   cpBodySetAngVel(body, owner->w);
   
-  cpVect j_world = cpvrotate(cpv(jx, jy), owner->rot);
+  cpVect j_world = cpvmult(cpvforangle(owner->a + angle + M_PI_2), power);
   cpBodyApplyImpulse(body, j_world, cpvzero);
   cpBodyApplyImpulse(owner, cpvneg(j_world), off_world);
   
