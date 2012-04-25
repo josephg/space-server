@@ -570,7 +570,7 @@ Game *game_init() {
   add_wall(g->space, cpv( 3100,  3100), cpv(-3100,  3100));
   add_wall(g->space, cpv(-3100,  3100), cpv(-3100, -3100));
 
-  for(int i = 0; i < 30; i++) {
+  for(int i = 0; i < 100; i++) {
     float mass = 50;
     ObjectId id = g->next_id++;
     cpBody *body = instantiate_model(MODEL_SHIP, id, g->space, mass, SHIP);
