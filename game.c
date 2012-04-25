@@ -286,8 +286,8 @@ void make_snapshot(Game *game, Client *client, Snapshot *snapshot) {
         {},
         {data->color[0], data->color[1], data->color[2]}
       };
-      strcpy(shipdata.layout, data->layout);
-      strcpy(shipdata.label, data->label);
+      strncpy(shipdata.layout, data->layout, sizeof(shipdata.layout));
+      strncpy(shipdata.label, data->label, sizeof(shipdata.label));
       memcpy(shipdata.color, data->color, 3);
       
       kv_push(ShipData, snapshot->shipdata, shipdata);
@@ -540,7 +540,7 @@ Game *game_init() {
   
   g->L = init_lua(g);
 
-  for(int i = 0; i < 30; i++) {
+  for(int i = 0; i < 100; i++) {
     float mass = 50;
     ObjectId id = g->next_id++;
     cpBody *body = instantiate_model(MODEL_SHIP, id, g->space, mass, SHIP);

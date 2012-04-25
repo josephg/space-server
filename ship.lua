@@ -155,23 +155,9 @@ local function parseShip(str)
         y = y + 1
         x = 0
       end,
-      ["|"] = function()
+      ["G"] = function()
         local dir
-        if y == 1 then
-          dir = {0, 1}
-        else
-          dir = {0, -1}
-        end
-        addPart("gun", dir)
-      end,
-      ["-"] = function()
-        local dir
-        if x == 1 then
-          dir = {-1, 0}
-        else
-          dir = {1, 0}
-        end
-        addPart("gun", dir)
+        addPart("gun", {0, 1})
       end,
       ["^"] = function()
         addPart("engine", { 0,  1})
@@ -355,7 +341,7 @@ function M.shipMessage(client, id, message)
 
   local s = ships[id]
 
-  if message == 'restart' then
+  if message == 'reload' then
     M.addShip(id)
   end
 
@@ -366,131 +352,6 @@ function M.clientClosed(client, id)
   clients[id][client] = nil
 end
 
---[[
-function isEngine(c)
-	return c == '^' or c == '<' or c == '>' or c == 'v' or c == '4' or c == '7'
-end
-
-function isGun(c)
-	return c == '-' or c == '|' or c == '/' or c == '\\'
-end
-
-function parseShip(str)
-	local guns = {}
-	local engines = {}
-	
-	function addGun(x, y, dx, dy)
-		-- work out position based on center point of ship
-		xpos = (-3+x)*10	
-		ypos = (-3+y)*10
-		-- add gun to list
-		guns[#guns + 1] = {on = false, x = xpos, y = ypos, direction = {dx, dy}}
-	end
-	
-	function addEngine(x, y, dx, dy)
-		-- work out position based on center point of ship
-		xpos = (-3+x)*10	
-		ypos = (-3+y)*10
-		-- add gun to list
-		engines[#engines + 1] = {on = false, x = xpos, y = ypos, direction = {dx, dy}}
-	end
-	
-	for count = 1, 30 do
-		local dx = 0
-		local dy = 0
-		local row = math.ceil(count / 6)
-		local col = count % 6	-- 1 to 5 for chars and 0 for new line
-		local char = str:sub(count, count)
-		if col > 0 and col < 6 then
-			-- check if gun
-			if isGun(char) then		
-				if char == '|' then
-					if row == 1 then		dy = -1
-					elseif row == 5 then	dy = 1
-					end
-					
-				elseif char == '-' then
-					if col == 1 then		dx = -1
-					elseif col == 5 then	dx = 1
-					end
-				
-				elseif char == '\\' then
-					if row == 1 or col == 1 then	
-						dx = -1
-						dy = -1
-					elseif row == 5 or col == 5 then	
-						dx = 1
-						dy = 1
-					end
-					
-				elseif char == '/' then
-					if row == 1 or col == 5 then		
-						dx = 1
-						dy = -1
-					elseif row == 5 or col == 1 then	
-						dx = -1
-						dy = 1
-					end
-				
-				else					
-					printf("invalid gun at row: %i / col: %i", row, col)
-					break
-				end
-				addGun(col, row, dx, dy)
-			-- check if engine
-			elseif isEngine(char) then		
-				if char == '^' then
-					if row == 1 then		dy = -1
-					end
-					
-				elseif char == '<' then
-					if col == 1 then		dx = -1
-					end
-				
-				elseif char == '>' then
-					if col == 1 then		dx = 1
-					end
-				
-				elseif char == 'v' then
-					if col == 1 then		dy = 1
-					end
-				
-				elseif char == '7' then
-					if row == 1 or col == 5 then		
-						dx = 1
-						dy = -1
-					elseif row == 5 or col == 1 then	
-						dx = -1
-						dy = 1
-					end
-					
-				elseif char == '4' then
-					if row == 1 or col == 1 then		
-						dx = -1
-						dy = -1
-					elseif row == 5 or col == 5 then	
-						dx = 1
-						dy = 1
-					end
-				
-				else					
-					printf("invalid gun at row: %i / col: %i", row, col)
-					break
-				end
-				addEngine(col, row, dx, dy)
-			elseif char ~= '.' then
-				printf("invalid character at row: %i / col: %i", row, col)	
-				break
-			end
-		elseif char ~= '\n' then
-			printf("invalid character at row: %i / col: %i", row, col)	
-			break
-		end
-	end
-	
-	return guns, engines
-end
-]]
 
 return M
 
