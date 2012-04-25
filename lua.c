@@ -128,6 +128,32 @@ LUA_EXPORT void set_heat(cpBody *body, float heat) {
   data->heat += heat / RADAR_FRAME_DELAY;
 }
 
+void ship_took_damage(Game *game, ObjectId id, int amt) {
+  lua_State *L = game->L;
+  
+  if (!L) {
+    return;
+  }
+
+  // Not implemented.
+}
+
+void notify_ship_died(Game *game, ObjectId id) {
+  lua_State *L = game->L;
+  
+  if (!L) {
+    return;
+  }
+
+  lua_getfield(L, -1, "shipDied");
+  lua_pushinteger(L, id);
+  int error = lua_pcall(L, 1, 0, 0);
+  if (error) {
+    fprintf(stderr, "%s\n", lua_tostring(L, -1));
+    lua_pop(L, 1);
+  }
+}
+
 void forward_ship_controller_message(Client *client, char *message) {
   Game *game = client->game;
   ObjectId id = client->avatar;

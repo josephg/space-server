@@ -104,22 +104,6 @@ void update_body_snapshot(cpBody *body, void *framep) {
   cpFloat a = cpBodyGetAngle(body);
   cpFloat w = cpBodyGetAngVel(body);
   
-
-//  
-//  PositionRecord prevP = data->snapshot[prevFrame].p;
-//  PositionRecord prevV = data->snapshot[prevFrame].v;
-//  PositionRecord prevA = data->snapshot[prevFrame].a;
-//  // Lets pretend to be a client and see if we get the correct values.
-//  cpFloat sx = prevP.x + prevV.x + prevA.x;
-//  cpFloat sy = prevP.y + prevV.y + prevA.y;
-//  cpFloat sa = prevP.a + prevV.a + prevA.a;
-//
-//  
-  
-//  cpFloat sx = data->x + data->dx + data->ddx;
-//  cpFloat sy = data->y + data->dy + data->ddy;
-//  cpFloat sa = data->angle + data->da + data->dda;
-
   bool differs = false;
   if(!SIMILARF(data->cddx, data->a.x)
      || !SIMILARF(data->cddy, data->a.y)
@@ -163,6 +147,7 @@ void update_body_snapshot(cpBody *body, void *framep) {
   }
   
   char current = *frame % SNAPSHOT_DELAY;
+
   uint8_t flag = 1 << current;
   data->relevant_snapshots = (data->relevant_snapshots & ~flag) | (differs << current);
   
@@ -179,6 +164,13 @@ void update_body_snapshot(cpBody *body, void *framep) {
     data->snapshot[current].v = sv;
     data->snapshot[current].a = sa;
   }
+  
+  if (data->type == SHIP) {
+    char prev_frame = (*frame - 1) % SNAPSHOT_DELAY;
+    bool differs = data->hp_snapshot[prev_frame] != data->hp;
+    data->relevant_hp_snapshot = (data->relevant_hp_snapshot & ~flag) | (differs << current);
+    data->hp_snapshot[current] = data->hp;
+  }
 }
 
 
@@ -194,7 +186,7 @@ void add_body_to_set(cpShape *shape, void *s) {
   
   cpBody *body = cpShapeGetBody(shape);
   SpaceBodyData *data = (SpaceBodyData *)body->data;
-  
+  if(data == NULL) return;
   int ret;
   khint_t iter = kh_put_bodymap(bodies, data->id, &ret);
   kh_val(bodies, iter) = body;
@@ -286,8 +278,8 @@ void make_snapshot(Game *game, Client *client, Snapshot *snapshot) {
         {},
         {data->color[0], data->color[1], data->color[2]}
       };
-      strcpy(shipdata.layout, data->layout);
-      strcpy(shipdata.label, data->label);
+      strncpy(shipdata.layout, data->layout, sizeof(data->layout));
+      strncpy(shipdata.label, data->label, sizeof(data->label));
       memcpy(shipdata.color, data->color, 3);
       
       kv_push(ShipData, snapshot->shipdata, shipdata);
@@ -327,6 +319,7 @@ cpBody *instantiate_model(ModelIdx i, ObjectId id, cpSpace *space, cpFloat mass,
   
   cpShape *shape = cpSpaceAddShape(space, cpPolyShapeNew(body, m->num_verts, m->verts, m->offset));
   shape->collision_type = type;
+  cpShapeSetElasticity(shape, 0.15);
   
   SpaceBodyData *data = (SpaceBodyData *)malloc(sizeof(SpaceBodyData));
   SpaceBodyData d = {}; *data = d;
@@ -343,10 +336,12 @@ LUA_EXPORT void fire_gun(Game *g, cpBody *owner, cpFloat jx, cpFloat jy, cpFloat
   // Called from lua.
   //SpaceBodyData *ownerData = owner->data;
 
-  cpBody *body = instantiate_model(MODEL_BULLET, g->next_id++, g->space, 2, BULLET);
+  cpBody *body = instantiate_model(MODEL_BULLET, g->next_id++, g->space, 1.5, BULLET);
   SpaceBodyData *data = (SpaceBodyData *)body->data;
   data->spawn_frame = g->frame;
-  data->owner = owner;
+  
+  SpaceBodyData *ownerData = (SpaceBodyData *)owner->data;
+  data->owner = ownerData->id;
   //data->color[0] = data->color[1] = data->color[2] = 200;
   
   cpVect offset = cpvadd(cpv(off_x, off_y), models[data->model].offset);
@@ -381,6 +376,7 @@ void apply_acceleration(cpBody *body) {
 
 typedef struct {
   Game *game;
+  bool can_purge; // Don't use the purge list if can_purge is false.
   kvec_t(cpBody *) purge_list;
 } BodyUpdateInfo;
 
@@ -388,31 +384,21 @@ void update_body(cpBody *body, void *vdata) {
   BodyUpdateInfo *info = (BodyUpdateInfo *)vdata;
   
   SpaceBodyData *data = (SpaceBodyData *)body->data;
-  if (data->type == BULLET && data->spawn_frame + 500 <= info->game->frame) {
+  if (data->type == BULLET && data->spawn_frame + BULLET_SURVIVAL_TIME <= info->game->frame && info->can_purge) {
     kv_push(cpBody *, info->purge_list, body);
-  } else {
+  } else if(data->type == SHIP) {
     apply_acceleration(body);
+    
+    if(info->can_purge && data->dead) {
+      kv_push(cpBody *, info->purge_list, body);
+    }
   }
-  
-  cpVect p = cpBodyGetPos(body);
-  
-  // If objects go out of the game world, push them back in!
-  cpVect v = cpBodyGetVel(body);
-  if(p.x < -3000) {
-    v.x = fabs(v.x);
-  } else if(p.x > 3000) {
-    v.x = -fabs(v.x);
-  }
-  if(p.y < -3000) {
-    v.y = fabs(v.y);
-  } else if(p.y > 3000) {
-    v.y = -fabs(v.y);
-  }
-  cpBodySetVel(body, v);
 }
 
 void remove_shape(cpBody *body, cpShape *shape, void *space) {
   cpSpaceRemoveShape((cpSpace *)space, shape);
+  memset(shape, 0, sizeof(*shape));
+  cpShapeFree(shape);
 }
 
 void add_shape_to_radar(cpShape *shape, void *radar_d) {
@@ -421,7 +407,9 @@ void add_shape_to_radar(cpShape *shape, void *radar_d) {
   // If any shapes are in the world twice, they'll appear twice in the radar!
   // (Fix this once its a problem...)
   SpaceBodyData *data = (SpaceBodyData *)body->data;
-  if (data->type == SHIP && data->heat > 0) {
+  if(data == NULL) return; // Ignore the walls.
+  
+  if(data->type == SHIP && data->heat > 0) {
     Heat heat = {
       (float)body->p.x,
       (float)body->p.y,
@@ -440,20 +428,41 @@ void clear_changed_flag(cpBody *body, void *unused) {
 void game_update(Game *game) {
   game->frame++;
   
+  bool is_snapshot_frame = game->frame % SNAPSHOT_DELAY == SNAPSHOT_DELAY - 1;
   call_lua_updates(game);
   BodyUpdateInfo info = {game};
+  info.can_purge = is_snapshot_frame;// Only allow purging objects on snapshot frames. Its just easier that way.
   cpSpaceEachBody(game->space, update_body, &info);
   
   for(unsigned int i = 0; i < kv_size(info.purge_list); i++) {
-    cpSpaceRemoveBody(game->space, kv_A(info.purge_list, i));
-    cpBodyEachShape(kv_A(info.purge_list, i), remove_shape, game->space);
+    cpBody *body = kv_A(info.purge_list, i);
+    
+    SpaceBodyData *data = (SpaceBodyData *)body->data;
+    // A bit of a hack. Make sure no clients are focussing on the body. If they are, nuke their focus.
+    if (data && data->type == SHIP) {
+      for (int c = 0; c < kv_size(game->clients); c++) {
+        Client *client = kv_A(game->clients, c);
+        if (client->focusedBody == body) {
+          client->focusedBody = NULL;
+        }
+      }
+    }
+    
+    cpSpaceRemoveBody(game->space, body);
+    cpBodyEachShape(body, remove_shape, game->space);
+    if(data) {
+      memset(data, 0, sizeof(*data));
+      free(data);
+    }
+    memset(body, 0, sizeof(*body));
+    cpBodyFree(body);
   }
   
   cpSpaceStep(game->space, (cpFloat)DT / 1000);
   
   cpSpaceEachBody(game->space, update_body_snapshot, &game->frame);  
   
-  if (game->frame % SNAPSHOT_DELAY == SNAPSHOT_DELAY - 1) {
+  if (is_snapshot_frame) {
     // Radar.
     if (game->last_radar_frame < game->frame - RADAR_FRAME_DELAY) {
       kv_size(game->radar.objects) = 0;
@@ -498,33 +507,49 @@ float rand_float(float max) {
 }
 #endif
 
+void ship_die(Game *game, cpBody *ship) {
+  SpaceBodyData *data = ship->data;
+  //printf("BLah dead ship %d\n", data->id);
+
+  data->hp = 0;
+  data->dead = true;
+  notify_ship_died(game, data->id);
+}
+
 int bullet_hit_ship_begin(cpArbiter *arb, cpSpace *space, void *data) {
   CP_ARBITER_GET_BODIES(arb, b, s);
   SpaceBodyData *b_data = (SpaceBodyData *)b->data;
+  SpaceBodyData *s_data = (SpaceBodyData *)s->data;
   Game *game = (Game *)data;
 
   // For the first few frames, don't let the bullet collide with the ship that spawned it.
-  return (b_data->owner != s || game->frame - b_data->spawn_frame > 5);
+  return (b_data->owner != s_data->id || game->frame - b_data->spawn_frame > 5);
 }
 
-void bullet_hit_ship_post(cpArbiter *arb, cpSpace *space, void *unused) {
+void bullet_hit_ship_post(cpArbiter *arb, cpSpace *space, void *g) {
+  Game *game = (Game *)g;
   CP_ARBITER_GET_BODIES(arb, b, s);
   cpFloat energy = cpArbiterTotalKE(arb);
   if(energy < 1000) return;
   SpaceBodyData *data = s->data;
   if(data->dead) return;
   
-  float damage = sqrt(energy/2000);
+  int damage = (int)sqrt(energy/2000);
   // Make the player take damage
 
+  ship_took_damage(game, data->id, damage);
   data->hp -= damage;
   if(data->hp <= 0) {
-    data->hp = 0;
-    data->dead = true;
-    printf("BLah dead ship %d\n", data->id);
+    ship_die(game, s);
   }
 }
 
+void add_wall(cpSpace *space, cpVect a, cpVect b) {
+  cpBody *staticBody = cpSpaceGetStaticBody(space);
+  cpShape *shape = cpSpaceAddShape(space, cpSegmentShapeNew(staticBody, a, b, 100));
+  cpShapeSetElasticity(shape, 1);
+  cpShapeSetFriction(shape, 0);
+}
 
 Game *game_init() {
   Game *g = (Game *)malloc(sizeof(Game));
@@ -539,6 +564,11 @@ Game *game_init() {
   kv_init(g->radar.blips);
   
   g->L = init_lua(g);
+  
+  add_wall(g->space, cpv(-3100, -3100), cpv( 3100, -3100));
+  add_wall(g->space, cpv( 3100, -3100), cpv( 3100,  3100));
+  add_wall(g->space, cpv( 3100,  3100), cpv(-3100,  3100));
+  add_wall(g->space, cpv(-3100,  3100), cpv(-3100, -3100));
 
   for(int i = 0; i < 30; i++) {
     float mass = 50;

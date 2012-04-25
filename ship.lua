@@ -85,7 +85,7 @@ local owners = {
   seph = 100,
   sam = 101,
 
-  conner = 102,
+  connor = 102,
   tom = 103, 
   pat = 104,
   sidney = 105,
@@ -100,7 +100,6 @@ local owners = {
   paul = 114,
   alex = 115,
   serkan = 116,
-
   atanas = 117
 }
 
@@ -323,6 +322,12 @@ local function splitSpace(message)
     -- No space.
     return message
   end
+end
+
+function M.shipDied(id)
+  -- We should probably tell the controller about it as well.
+  print("lua ship", id, "died")
+  ships[id] = nil
 end
 
 function M.shipMessage(client, id, message)
