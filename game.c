@@ -538,9 +538,13 @@ void bullet_hit_ship_post(cpArbiter *arb, cpSpace *space, void *g) {
   // Make the player take damage
 
   ship_took_damage(game, data->id, damage);
-  data->hp -= damage;
-  if(data->hp <= 0) {
+  
+  // data->hp is unsigned.
+  if(data->hp <= damage) {
+    data->hp = 0;
     ship_die(game, s);
+  } else {
+    data->hp -= damage;
   }
 }
 
