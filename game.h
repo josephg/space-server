@@ -13,6 +13,7 @@
 #define SNAPSHOT_DELAY 5
 #define VIEWPORT_SIZE 1024
 #define RADAR_FRAME_DELAY 20
+#define BULLET_SURVIVAL_TIME 200
 static const float FMULT = (float)DT/1000;
 
 #include "chipmunk/chipmunk.h"
@@ -28,10 +29,12 @@ static const float FMULT = (float)DT/1000;
 
 typedef uint32_t ObjectId;
 typedef uint32_t Frame;
+typedef unsigned short Hp;
 
 KHASH_SET_INIT_INT(intset);
 
 typedef enum {
+  IGNORED,
   SHIP,
   BULLET,
   ASTEROID,
@@ -173,16 +176,19 @@ typedef struct SpaceBodyData_t{
     // For bullets.
     struct {
       int spawn_frame;
-      cpBody *owner;
+      ObjectId owner;
     };
     
     struct {
       // For ships
-      int hp;
       char layout[5*6];
       char label[8];
       uint8_t color[3];
-      bool changed;
+      bool changed; // has the ship data (previous 3 fields) changed since the last snapshot?
+      
+      Hp hp;
+      uint8_t relevant_hp_snapshot;
+      Hp hp_snapshot[SNAPSHOT_DELAY];
     };
   };
   

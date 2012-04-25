@@ -32,4 +32,6 @@ void add_ship(Game *game, ObjectId id, cpBody *ship);
 void forward_ship_controller_message(Client *client, char *message);
 void call_lua_updates(Game *game);
 void client_closed(Client *client);
+void ship_took_damage(Game *game, ObjectId id, int amt);
+void notify_ship_died(Game *game, ObjectId id);
 #endif
